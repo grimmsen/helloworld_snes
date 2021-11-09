@@ -1,0 +1,136 @@
+<html>
+    <header>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+        <script src="iro.min.js"></script>
+    </header>
+    <body onload="init();" style="background-color: black;">
+        <table width="100%" style="margin:0;border-spacing:1px">
+            <tr>
+                <td width="70%">
+                    <table id="tile"></table>
+                    <div id="tiledata" style="color: white; font-family: 'Courier New', Courier, monospace;">SNES-Values: </div>
+                </td>
+                <td>
+                    <div id="picker"></div>
+                    <div id="snesval" style="color: white; font-family: 'Courier New', Courier, monospace;">SNES-Values: </div>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>
+                    <table id="palette" style="margin:0;border-spacing:1px"></table>
+                </td>
+            </tr>
+        </table>
+        
+    </body>
+<script language="Javascript">
+    String.prototype.getPos = function() {
+        return { x: parseInt(this.split('-')[1]),y: parseInt(this.split('-')[2])};
+    }
+
+    var activeId="c-0-0";
+    var activeNum=0;
+    var activeTile=0;
+
+    var colorPicker;
+
+    var paletteData = new Uint8Array(16*16*3);
+    var tileData = new Uint8Array(8*8*256);
+
+    function toBinary(n) {
+        n = Number(n);
+        r = ['0','0','0','0','0','0','0','0'];
+        var x = 0;
+        while (n != 0) {
+            r[7-x] = (n&1)?'1':'0';
+            n = n >>> 1;
+            x++;
+        }
+        return r.join('');
+    }
+
+    function toHex(d, padding) {
+        var hex = Number(d).toString(16);
+        padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+        while (hex.length < padding) {
+            hex = "0" + hex;
+        }
+        return hex;
+    }
+
+    var getTileData = function() {
+        var tileString="";
+        for(var y=0; y<8; y++) {
+            var bitPlane1=0;
+            var bitPlane2=0;
+            for(var x=0; x<8; x++) {
+                // just 0-3 this time / 4 Farben in Mode 0 ( 2bpp aka 2 bitplanes )!!
+                bitPlane1|=(tileData[x+8*y]&1)<<(7-x);
+                bitPlane2|=((tileData[x+8*y]&2)>>1)<<(7-x);
+            }
+            tileString+="$"+toHex(bitPlane1,2)+",$"+toHex(bitPlane2)+",";
+        }
+        $('#tiledata').text(tileString);
+    }
+
+    var updateColors = function() {
+        for(var y=0;y<=15;y++) {
+            for(var x=0;x<=15;x++) {
+                var palNum = tileData[x+8*y+64*activeTile];
+                var palX = (palNum>>>0)%16;
+                var palY = (palNum/16)>>>0;
+                $("#t-"+x+"-"+y).css("background-color",$("#c-"+palX+"-"+palY).css("background-color"));
+            }
+        }
+    }
+
+    var selectPalette = function(id) {
+        for(var x=0; x<=15;x++)
+            for(var y=0; y<=15;y++) {
+                $("#c-"+x+"-"+y).css("border","1px solid white");
+            }
+        $("#"+id).css("border","1px solid green");
+        activeId=id;
+    }
+
+    var updatePalette = function(col) {
+        // convert to 15 bit rgb
+        var r = col.rgb.r&0xf8; // just delete the lower 3 bits
+        var g = col.rgb.g&0xf8;
+        var b = col.rgb.b&0xf8;
+        activeNum = activeId.getPos().x+16*activeId.getPos().y;
+        var lowByte = (r>>3)|(g<<2)&0x0ff;
+        var highByte = (g>>6)|(b>>1);
+        $("#snesval").text("SNES-Values: $"+toHex(highByte,2)+" $"+toHex(lowByte,2)+' '+toBinary(highByte)+' '+toBinary(lowByte));
+        $("#"+activeId).css("background-color","rgb("+r+","+g+","+b+")");
+        updateColors();
+    }
+
+    var setPixel = function(id) {
+        activeNum = activeId.getPos().x+16*activeId.getPos().y;
+        tileData[id.getPos().x+8*id.getPos().y]=activeNum;
+        getTileData();
+        $("#"+id).css("background-color",$("#"+activeId).css("background-color"));
+    }
+
+    var init = function() {
+        colorPicker = new iro.ColorPicker('#picker',{width:200});
+        colorPicker.on('color:change',updatePalette)
+        var x=0;
+        var y=0;
+        for(y=0;y<=15;y++) {
+            $("#palette").append("<tr id='c-"+y+"'></tr>");
+            for(x=0;x<=15;x++) {
+                $("#c-"+y).append("<td id='c-"+x+"-"+y+"' onclick='selectPalette(\"c-"+x+"-"+y+"\")' style='height:20px;width:20px;border:1px solid white'></td>");
+            }
+        }
+        for(y=0;y<=7;y++) {
+            $("#tile").append("<tr id='t-"+y+"'></tr>");
+            for(x=0;x<=7;x++) {
+                $("#t-"+y).append("<td id='t-"+x+"-"+y+"' onclick='setPixel(\"t-"+x+"-"+y+"\")' style='height:30px;width:30px;border:1px solid white'></td>");
+            }
+        }
+    }
+</script>
+</html>

@@ -1,0 +1,15 @@
+# Memory Map for a minimal SNES game
+
+MEMORY
+{
+  ROM0:  start = $808000, size = $8000, fill = yes;
+  WRAM1: start = $7E0000, size = $E000;
+  WRAM2: start = $7F0000, size = $10000;
+}
+
+SEGMENTS
+{
+    DATA:   load = WRAM1, type=bss, align = $100;
+    CODE:   load = ROM0, align = $100;
+    SNESHEADER: load = ROM0, start = $80FFC0;
+}
